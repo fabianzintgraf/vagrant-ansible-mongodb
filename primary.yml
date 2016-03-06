@@ -1,0 +1,75 @@
+---
+- hosts: all
+  user: vagrant
+  gather_facts: True
+  tasks:
+    - name: Install packages
+      action: apt update_cache=yes pkg={{item}} state=installed
+      with_items:
+      - mongodb
+
+    - name: Ensure Mongodb is stopped
+      service: name=mongodb state=stopped
+
+    - file: path=/data/db state=directory mode=0755
+
+    - name: Add mongodb configuration
+      template: src=templates/mongod.conf.j2 dest=/etc/mongodb.conf owner=root group=root mode=0755
+   
+    - name: Add hosts
+      template: src=templates/hostfile.j2 dest=/etc/hosts backup=yes
+
+    - name: Copy admin user file
+      template: src=templates/mongod.adminuser.j2 dest=/tmp/adminuser.js
+   
+    - name: Copy repl set file
+      template: src=templates/mongod.replset.j2 dest=/tmp/replset.js
+
+    - name: Open Port
+      command: ufw allow 27017
+      become: yes
+      become_method: sudo
+
+    - name: Open Port
+      command: iptables -A INPUT -p tcp --dport 27017 -j ACCEPT
+      become: yes
+      become_method: sudo
+
+    - name: Flush iptables
+      command: iptables --flush
+      become: yes
+      become_method: sudo    
+
+    - name: Start mongod with mongodb.conf
+      command: mongod --config /etc/mongodb.conf
+      become: yes
+      become_method: sudo
+      environment:
+        LC_ALL: en_US.UTF-8
+
+    - name: Restart mongodb service
+      command: service mongodb restart
+      become: yes
+      become_method: sudo
+
+    - name: Ensure Mongodb is started
+      service: name=mongodb state=started
+
+    - name: Pause for a while
+      pause: seconds=20
+
+    - name: Initialize the replication set
+      shell: /usr/bin/mongo /tmp/replset.js
+      become: yes
+      become_method: sudo
+
+    - name: Pause for a while
+      pause: seconds=20
+
+    - name: Add user
+      shell: /usr/bin/mongo admin /tmp/adminuser.js
+      become: yes
+      become_method: sudo
+
+    - name: Ensure Mongodb starts on boot
+      command: update-rc.d mongodb defaults

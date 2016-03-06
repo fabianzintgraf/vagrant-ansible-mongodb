@@ -1,0 +1,19 @@
+# point to the directory we just created
+dbpath=/data/db
+
+# uncomment to use the default port
+port = 27017
+
+# where to log
+logpath=/var/log/mongod.log
+logappend=true
+
+# name our replica set
+replSet = primary
+
+# allow the process to fork so you...
+# ...can use your shell after spinning up
+fork = true
+
+# Allow external connection
+bind_ip = 0.0.0.0
